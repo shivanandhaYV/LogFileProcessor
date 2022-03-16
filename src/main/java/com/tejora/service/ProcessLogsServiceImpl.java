@@ -27,29 +27,26 @@ public class ProcessLogsServiceImpl implements ProcessLogsService {
 
     @Override
     public ProcessLogsResponseDto processLogs(ProcessLogsRequestDto request) {
-        List<FileDataDto> filesData = new ArrayList<>();
+
+        List<FileDataDto> logFileData = request
+                .getLogFiles()
+                .parallelStream()
+                .limit(request.getParallelFileProcessingCount())
+                .map(data -> {
+                    String[] rowData = data.split(" ");
+                    FileDataDto fileDataDto = new FileDataDto();
+                    fileDataDto.setExceptionName(rowData[2]);
+                    fileDataDto.setRequestId(Long.valueOf(rowData[0]));
+                    LocalTime timeStamp = convertDateTIme(Long.valueOf(rowData[1]));
+                    fileDataDto.setTimeStamp(LocalTime.of(timeStamp.getHour(), floorTheMints(timeStamp.getMinute())));
+                    return fileDataDto;
+                }).collect(Collectors.toList());
 
 
 
-        for (int i = 0; i < request.getLogFiles().size(); i++) {
-            List<String> strings = processFile(request.getLogFiles().get(i));
-            for (String data : strings) {
-                String[] rowData = data.split(" ");
-                FileDataDto fileDataDto = new FileDataDto();
-                fileDataDto.setExceptionName(rowData[2]);
-                fileDataDto.setRequestId(Long.valueOf(rowData[0]));
-                fileDataDto.setTimeStamp(convertDateTIme(Long.valueOf(rowData[1])));
-                filesData.add(fileDataDto);
-            }
-        }
-
-        for (FileDataDto fileData : filesData) {
-
-            // process the
-        }
 
 
-        System.out.println("filesData = " + filesData);
+        System.out.println("filesData = " + logFileData);
         return null;
     }
 
@@ -78,24 +75,18 @@ public class ProcessLogsServiceImpl implements ProcessLogsService {
     }
 
 
-
     private List<LocalTime> dayHours() {
         return IntStream.range(1, 24).mapToObj(hour -> LocalTime.of(hour, 0)).collect(Collectors.toList());
     }
 
 
-
-
-    private String floorTheMints(int mints) {
+    private int floorTheMints(int mints) {
         int timeFlooring = 15;
         int floorMints = mints;
         if (mints > 0 && mints <= 60) {
             floorMints = (mints / timeFlooring) * timeFlooring;
         }
-        if (floorMints > 9)
-            return String.valueOf("0" + floorMints);
-        else
-            return String.valueOf(floorMints);
+        return floorMints;
     }
 
     public static boolean dateBetween(LocalTime start, LocalTime end, LocalTime time) {
